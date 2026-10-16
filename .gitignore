@@ -66,3 +66,20 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# Data — downloadable, do not commit
+data/
+*.gz
+*-ubyte
+*-ubyte.gz
+
+# Build artifacts
+build/
+*.o
+*.out
+mnist
+mnist.exe
+
+# Editor / OS
+.DS_Store
+*.swp
