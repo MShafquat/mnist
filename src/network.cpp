@@ -5,7 +5,14 @@
 #include <cmath>
 #include <print>
 
-// Weight matrices are row-major: W1 is hid×in, W2 is out×hid.
+namespace {
+
+int argmax(std::span<const float> v) {
+    return std::ranges::max_element(v) - v.begin();
+}
+
+}  // namespace
+
 Network::Network(int in, int hid, int out, unsigned seed)
     : in_(in), hid_(hid), out_(out),
     W1_(hid * in), b1_(hid, 0.0f),
@@ -21,24 +28,24 @@ Network::Network(int in, int hid, int out, unsigned seed)
         for (auto& w: W2_) w = nd2(rng_);
 }
 
-const float* Network::forward(const unsigned char* image) {
+std::span<const float> Network::forward(std::span<const uint8_t> image) {
     // Scale pixels from [0, 255] to [0, 1].
     for (int i = 0; i < in_; i++) {
         x_[i] = image[i] / 255.0f;
     }
 
     // Hidden layer: z1 = W1·x + b1, a1 = ReLU(z1)
-    matvec(W1_.data(), x_.data(), z1_.data(), hid_, in_);
+    matvec(W1(), x_, z1_);
     for (int j = 0; j < hid_; j++) z1_[j] += b1_[j];
     for (int j = 0; j < hid_; j++) a1_[j] = z1_[j] > 0.0f ? z1_[j] : 0.0f;
 
     // Output layer: z2 = W2·a1 + b2
-    matvec(W2_.data(), a1_.data(), z2_.data(), out_, hid_);
+    matvec(W2(), a1_, z2_);
     for (int k = 0; k < out_; k++) z2_[k] += b2_[k];
 
     // Softmax. Subtracting the max logit doesn't change the result but
     // keeps exp() from overflowing.
-    float m = *std::max_element(z2_.begin(), z2_.end());
+    float m = *std::ranges::max_element(z2_);
     float s = 0;
     for (int k = 0; k < out_; k++) {
         p_[k] = std::exp(z2_[k] - m);
@@ -48,10 +55,13 @@ const float* Network::forward(const unsigned char* image) {
         p_[k] /= s;
     }
 
-    return p_.data();
+    return p_;
 }
 
 float Network::backward(int label, float lr) {
+    Matrix W1 = this->W1();
+    Matrix W2 = this->W2();
+
     // Cross-entropy loss, only returned for logging. The clamp avoids log(0).
     float loss = -std::log(std::max(p_[label], 1e-7f));
 
@@ -63,10 +73,10 @@ float Network::backward(int label, float lr) {
 
     // Back to the hidden layer: da1 = W2ᵀ·dz2.
     // Computed before W2 is updated below, since it needs the old weights.
-    std::fill(da1_.begin(), da1_.end(), 0.0f);
+    std::ranges::fill(da1_, 0.0f);
     for (int k = 0; k < out_; k++) {
         for (int j = 0; j < hid_; j++) {
-            da1_[j] += W2_[k * hid_ + j] * dz2_[k];
+            da1_[j] += W2[k, j] * dz2_[k];
         }
     }
 
@@ -78,7 +88,7 @@ float Network::backward(int label, float lr) {
     // SGD step for the output layer: dW2 = dz2 ⊗ a1, db2 = dz2
     for (int k = 0; k < out_; ++k) {
         for (int j = 0; j < hid_; ++j) {
-            W2_[k * hid_ + j] -= lr * dz2_[k] * a1_[j];
+            W2[k, j] -= lr * dz2_[k] * a1_[j];
         }
         b2_[k] -= lr * dz2_[k];
     }
@@ -86,7 +96,7 @@ float Network::backward(int label, float lr) {
     // SGD step for the hidden layer: dW1 = dz1 ⊗ x, db1 = dz1
     for (int j = 0; j < hid_; j++) {
         for (int i = 0; i < in_; i++) {
-            W1_[j * in_ + i] -= lr * dz1_[j] * x_[i];
+            W1[j, i] -= lr * dz1_[j] * x_[i];
         }
         b1_[j] -= lr * dz1_[j];
     }
@@ -97,8 +107,7 @@ float Network::backward(int label, float lr) {
 float Network::evaluate(const MnistDataset& ds, const std::vector<size_t>& idx) {
     int correct = 0;
     for (size_t n : idx) {
-        const float* p = forward(ds.image(n));
-        if (std::max_element(p, p + out_) - p == ds.label(n)) correct++;
+        if (argmax(forward(ds.image(n))) == ds.label(n)) correct++;
     }
     return 100.0f * correct / idx.size();
 }
@@ -110,13 +119,11 @@ float Network::train(const MnistDataset& ds, std::vector<size_t> train_idx,
     for (int e = 0; e < epochs; ++e) {
         int correct = 0;
         float loss_sum = 0.0f;
-        std::shuffle(train_idx.begin(), train_idx.end(), rng_);
+        std::ranges::shuffle(train_idx, rng_);
 
         for (size_t n : train_idx) {
-            const float* p = forward(ds.image(n));
             int y = ds.label(n);
-            int pred = std::max_element(p, p + out_) - p;
-            if (pred == y) correct++;
+            if (argmax(forward(ds.image(n))) == y) correct++;
             loss_sum += backward(y, lr);
         }
 

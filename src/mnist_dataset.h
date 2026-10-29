@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -14,11 +15,11 @@ public:
 
     MnistDataset(const std::string& imagePath, const std::string& labelPath);
     size_t size() const;
-    // Pointer to kImageSize grayscale pixels (0-255), row by row.
-    const unsigned char* image(size_t index) const;
+    // kImageSize grayscale pixels (0-255), row by row.
+    std::span<const uint8_t, kImageSize> image(size_t index) const;
     uint8_t label(size_t index) const;
 
 private:
-    std::vector<unsigned char> images_;
+    std::vector<uint8_t> images_;
     std::vector<uint8_t> labels_;
 };

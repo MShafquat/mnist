@@ -1,8 +1,14 @@
 #pragma once
 
-// C = A · B, where A is M×K, B is K×N and C is M×N (all row-major).
-void matmul(const float* A, const float* B, float* C,
-    int M, int K, int N);
+#include <mdspan>
+#include <span>
 
-// y = A · x, where A is M×K (row-major) and x has K elements.
-void matvec(const float* A, const float* x, float* y, int M, int K);
+// Row-major 2D views over flat float buffers. Indexing is m[row, col].
+using Matrix = std::mdspan<float, std::dextents<int, 2>>;
+using ConstMatrix = std::mdspan<const float, std::dextents<int, 2>>;
+
+// C = A · B, where A is M×K, B is K×N and C is M×N.
+void matmul(ConstMatrix A, ConstMatrix B, Matrix C);
+
+// y = A · x, where A is M×K, x has K elements and y has M.
+void matvec(ConstMatrix A, std::span<const float> x, std::span<float> y);

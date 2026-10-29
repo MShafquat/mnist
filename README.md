@@ -33,3 +33,13 @@ Run from the repo root (the data paths are relative):
 ./build/mnist
 ```
 
+## Metrics
+
+MLP (784 → 64 → 10, ReLU + softmax) trained with SGD, learning rate 0.01,
+10 epochs, on an 80/20 train/val split of the 60k training set:
+
+| Model     | Loss   | Train  | Val    | Test   |
+|-----------|--------|--------|--------|--------|
+| MLP + SGD | 0.0245 | 99.20% | 97.18% | 97.38% |
+
+Test accuracy is measured on the separate 10k MNIST test set.

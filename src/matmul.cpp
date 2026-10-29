@@ -1,22 +1,22 @@
 #include "matmul.h"
 
-void matmul(const float *A, const float *B, float *C,
-            int M, int K, int N) {
-    for (int i = 0; i < M; i++) {
-        for (int j = 0; j < N; j++) {
-            C[i * N + j] = 0;
-            for (int k = 0; k < K; k++) {
-                C[i * N + j] += A[i * K + k] * B[k * N + j];
+void matmul(ConstMatrix A, ConstMatrix B, Matrix C) {
+    for (int i = 0; i < C.extent(0); i++) {
+        for (int j = 0; j < C.extent(1); j++) {
+            float sum = 0.0f;
+            for (int k = 0; k < A.extent(1); k++) {
+                sum += A[i, k] * B[k, j];
             }
+            C[i, j] = sum;
         }
     }
 }
 
-void matvec(const float *A, const float *x, float *y, int M, int K) {
-    for (int i = 0; i < M; i++) {
+void matvec(ConstMatrix A, std::span<const float> x, std::span<float> y) {
+    for (int i = 0; i < A.extent(0); i++) {
         float sum = 0.0f;
-        for (int k = 0; k < K; k++) {
-            sum += A[i * K + k] * x[k];
+        for (int k = 0; k < A.extent(1); k++) {
+            sum += A[i, k] * x[k];
         }
         y[i] = sum;
     }
