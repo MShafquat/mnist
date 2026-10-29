@@ -1,6 +1,7 @@
 #include "mnist_dataset.h"
 #include <arpa/inet.h>
 #include <fstream>
+#include <stdexcept>
 
 MnistDataset::MnistDataset(const std::string& imagePath, const std::string& labelPath) {
     std::ifstream img(imagePath, std::ios::binary);
@@ -15,7 +16,7 @@ MnistDataset::MnistDataset(const std::string& imagePath, const std::string& labe
         throw std::runtime_error("bad image file loaded");
     }
 
-    images_.resize(static_cast<size_t>(count) * 784);
+    images_.resize(static_cast<size_t>(count) * kImageSize);
     img.read(reinterpret_cast<char*>(images_.data()), images_.size());
     if (!img) throw std::runtime_error("image read truncated!");
 
@@ -38,7 +39,7 @@ MnistDataset::MnistDataset(const std::string& imagePath, const std::string& labe
 size_t MnistDataset::size() const { return labels_.size(); }
 
 const unsigned char* MnistDataset::image(size_t index) const {
-    return images_.data() + index * 784;
+    return images_.data() + index * kImageSize;
 }
 
 uint8_t MnistDataset::label(size_t index) const {
